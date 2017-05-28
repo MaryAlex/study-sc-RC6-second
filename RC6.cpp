@@ -10,7 +10,7 @@ RC6::RC6(unsigned int W, unsigned int R, unsigned int B) {
 }
 
 void RC6::rc_constraints(const unsigned int &w, unsigned int &p, unsigned int &q) {
-	p = (unsigned int)std::ceil(((exp(1) - 2) * std::pow(2, w)));
+	p = (unsigned int)std::ceil(((M_E - 2) * std::pow(2, w)));
 	q = (unsigned int)((1.618033988749895 - 1) * std::pow(2, w));    
 }
 
@@ -53,22 +53,22 @@ std::string RC6::hex_to_string(unsigned int A, unsigned int B, unsigned int C, u
 	std::string strA, strB, strC, strD, result;
 
 	std::stringstream ss;
-	ss << std::setfill('0') << std::setw(4) << std::hex << A;
+	ss << std::setfill('0') << std::setw(8) << std::hex << A;
 	strA = little_endian(ss.str());
 	ss.str("");
 	ss.clear();
 
-	ss << std::setfill('0') << std::setw(4) << std::hex << B;
+	ss << std::setfill('0') << std::setw(8) << std::hex << B;
 	strB = little_endian(ss.str());
 	ss.str("");
 	ss.clear();
 
-	ss << std::setfill('0') << std::setw(4) << std::hex << C;
+	ss << std::setfill('0') << std::setw(8) << std::hex << C;
 	strC = little_endian(ss.str());
 	ss.str("");
 	ss.clear();
 
-	ss << std::setfill('0') << std::setw(4) << std::hex << D;
+	ss << std::setfill('0') << std::setw(8) << std::hex << D;
 	strD = little_endian(ss.str());
 	ss.str("");
 	ss.clear();
