@@ -10,11 +10,11 @@
 #define RC6_W 32
 #define RC6_R 20
 #define bitsInByte 8
+#define FOUR 4
+#define ONE 1
 #define bitsInInt (sizeof(int) * bitsInByte)
 
-char ourXor(std::string what, std::string with) {
-    return what.compare(with) ? '1' : '0';
-}
+int N;
 
 std::string remove_whitespace(std::string str) {
     std::string tmp = str.substr(0, str.length());
@@ -22,83 +22,84 @@ std::string remove_whitespace(std::string str) {
     return tmp;
 }
 
-std::string getVector(int n, bool isZeroes, std::string par, bool hamming) {
-    std::string x;
+int *getVector(int n, bool isZeroes, int par, bool hamming) {
+    N = n / bitsInInt;
+    int *x = new int[N];
     if (isZeroes) {
-        for (int i = 0; i < n; ++i) {
-            x.append("0");
+        for (int i = 0; i < N; ++i) {
+            x[i] = 0;
         }
         return x;
     }
     if (!hamming) {
-        for (int i = 0; i < n; ++i) {
-            int tmp = round((rand() * 1.) / RAND_MAX);
-            x.append(std::to_string(tmp));
+        for (int i = 0; i < N; ++i) {
+            x[i] = rand();
         }
         return x;
     }
-    for (int i = 0; i < n; ++i) {
-        x.append(par);
+    for (int i = 0; i < N; ++i) {
+        if (par) {
+            x[i] = INT32_MAX;
+        } else {
+            x[i] = 0;
+        }
+
     }
     int number = rand() % 3;
     for (int j = 0; j < number; ++j) {
         int ind = rand() % n;
-        x[ind] = ourXor(par, "1");
+        x[ind / bitsInInt] = x[ind / bitsInInt] ^ (ONE << (ind % bitsInInt));
     }
     return x;
 }
 
-std::string *getNVectors(long N, int n, bool isZeroes, std::string par, bool hamming) {
-    std::string *vectors = new std::string[N];
-    for (long i = 0; i < N; ++i) {
+int **getNVectors(long M, int n, bool isZeroes, int par, bool hamming) {
+    int **vectors = new int *[M];
+    for (long i = 0; i < M; ++i) {
         vectors[i] = getVector(n, isZeroes, par, hamming);
     }
     return vectors;
 };
 
-std::string stringToHex(std::string str) {
+std::string stringToHex(int *str) {
     std::string result = "";
-    unsigned long n = str.length();
-    for (unsigned long i = 0; i < n; i += bitsInByte) {
-        std::string number = str.substr(i, bitsInByte);
-        int a = std::strtol(number.c_str(), NULL, 2);
+    for (unsigned long i = 0; i < N; i++) {
         std::stringstream stream;
-        stream << std::setfill('0') << std::setw(2) << std::hex << a;
+        stream << std::setfill('0') << std::setw(8) << std::hex << str[i];
         result.append(stream.str());
     }
     return result;
 }
 
-std::string hexToString(std::string str) {
-    std::string result = "";
+int *hexToString(std::string str) {
+    int *result = new int[N];
     unsigned long n = str.length();
-    for (unsigned long i = 0; i < n; i += 2) {
-        std::string number = str.substr(i, 2);
-        int a = std::strtol(number.c_str(), NULL, 16);
-        std::string binary = std::bitset<bitsInByte>(a).to_string();
-        result.append(binary);
+    for (unsigned long i = 0; i < n; i += 8) {
+        std::string number = str.substr(i, 8);
+        result[i / 8] = std::strtol(number.c_str(), NULL, 16);
     }
     return result;
 }
 
-std::string *encryptBlocks(RC6 *rc6, std::string *vectors, long N, std::string key) {
+int **encryptBlocks(RC6 *rc6, int **vectors, long M, int *key) {
     std::string hexKey = stringToHex(key);
-    std::string *encrypted = new std::string[N];
-    for (long i = 0; i < N; i++) {
-        std::string str = stringToHex(vectors[i]);
-        std::string encrypted_line = rc6->run(RC6_ENCRYPT_MODE, str, hexKey);
-        encrypted[i] = hexToString(remove_whitespace(encrypted_line));
+    int **encrypted = new int *[M];
+    for (long i = 0; i < M; i++) {
+        std::string a = stringToHex(vectors[i]);
+        std::string encrypted_line = remove_whitespace(rc6->run(RC6_ENCRYPT_MODE, a, hexKey));
+        encrypted[i] = hexToString(encrypted_line);
     }
     return encrypted;
 }
 
-std::string *encryptBlocksForNine(RC6 *rc6, long N, int n, std::string key) {
+int **encryptBlocksForNine(RC6 *rc6, long M, int n, int *key) {
     std::string hexKey = stringToHex(key);
-    std::string *encrypted = new std::string[N + 1];
-    for (int i = 0; i < n; i++) {
-        encrypted[0].append("0");
+    int **encrypted = new int *[M + 1];
+    encrypted[0] = new int [N];
+    for (int i = 0; i < N; i++) {
+        encrypted[0][i] = 0;
     }
-    for (long i = 1; i <= N; i++) {
+    for (long i = 1; i <= M; i++) {
         std::string str = stringToHex(encrypted[i - 1]);
         std::string encrypted_line = rc6->run(RC6_ENCRYPT_MODE, str, hexKey);
         encrypted[i] = hexToString(remove_whitespace(encrypted_line));
@@ -106,100 +107,76 @@ std::string *encryptBlocksForNine(RC6 *rc6, long N, int n, std::string key) {
     return encrypted;
 }
 
-std::string xorVectros(std::string a, std::string b) {
-    std::string result = a;
-	//it used to be 
-	//std::string result;
-	//but it didn't work that way, so I changed it to this
+int *xorVectros(int *a, int *b) {
+    int *result = new int[N];
 
-    for (int i = 0; i < a.length(); ++i) {
-        result[i] = ourXor(std::to_string(a[i]), std::to_string(b[i]));
+    for (int i = 0; i < N; ++i) {
+        result[i] = a[i] ^ b[i];
     }
     return result;
 }
 
-std::string **encryptBlocksForSix(RC6 *rc6, long N, int n, int m, std::string *keys) {
-    std::string tmp;
-    for (int k = 0; k < n; ++k) {
-        tmp.append("0");
+int ***encryptBlocksForSix(RC6 *rc6, long M, int n, int m, int **keys) {
+    int *tmp = new int[N];
+    for (int k = 0; k < N; ++k) {
+        tmp[k] = 0;
     }
-    tmp = stringToHex(tmp);
-	
-    std::string **encrypted = new std::string *[N];
-    for (int i = 0; i < N; i++) {
-		encrypted[i] = new std::string [m];
+    std::string hexTmp = stringToHex(tmp);
+
+    int ***encrypted = new int **[M];
+    for (int i = 0; i < M; i++) {
+        encrypted[i] = new int*[m];
         std::string hexKey = stringToHex(keys[i]);
-        std::string encr = rc6->run(RC6_ENCRYPT_MODE, tmp, hexKey);
-        encr = hexToString(remove_whitespace(encr));
+        int *encr = hexToString(remove_whitespace(rc6->run(RC6_ENCRYPT_MODE, hexTmp, hexKey)));
         for (int j = 0; j < m; j++) {
-            std::string key_j = keys[i];
-            key_j[j] = ourXor(std::to_string(key_j[j]), "1");
-            std::string encr_j = rc6->run(RC6_ENCRYPT_MODE, tmp, stringToHex(key_j));
-            encr_j = hexToString(remove_whitespace(encr_j));
+            int *key_i = keys[i];
+            key_i[j / bitsInInt] = key_i[j / bitsInInt] ^ (ONE << (j % bitsInInt));
+            int *encr_j = hexToString(remove_whitespace(rc6->run(RC6_ENCRYPT_MODE, hexTmp, stringToHex(key_i))));
             encrypted[i][j] = xorVectros(encr, encr_j);
         }
     }
     return encrypted;
 }
 
-std::string **encryptBlocksForSeven(RC6 *rc6, long N, int n, int m, std::string *vectors) {
-    std::string tmp;
-    for (int k = 0; k < m; ++k) {
-        tmp.append("0");
+int ***encryptBlocksForSeven(RC6 *rc6, long M, int n, int m, int **vectors) {
+    int *tmp = new int[N];
+    for (int k = 0; k < N; ++k) {
+        tmp[k] = 0;
     }
-    tmp = stringToHex(tmp);
-    std::string **encrypted = new std::string *[N];
-    for (int i = 0; i < N; i++) {
-        encrypted[i] = new std::string[m];
-    }
-    for (int i = 0; i < N; i++) {
+    std::string hexTmp = stringToHex(tmp);
+    int ***encrypted = new int **[M];
+    for (int i = 0; i < M; i++) {
+        encrypted[i] = new int *[n];
         std::string text = stringToHex(vectors[i]);
-        std::string encr = rc6->run(RC6_ENCRYPT_MODE, text, tmp);
-        encr = hexToString(remove_whitespace(encr));
+        int *encr = hexToString(remove_whitespace(rc6->run(RC6_ENCRYPT_MODE, text, hexTmp)));
         for (int j = 0; j < n; j++) {
-            std::string text_j = vectors[i];
-            text_j[j] = ourXor(std::to_string(text_j[j]), "1");
-            std::string encr_j = rc6->run(RC6_ENCRYPT_MODE, stringToHex(text_j), tmp);
-            encr_j = hexToString(remove_whitespace(encr_j));
+            int *text_i = vectors[i];
+            text_i[j / bitsInInt] = text_i[j / bitsInInt] ^ (ONE << (j % bitsInInt));
+            int *encr_j = hexToString(remove_whitespace(rc6->run(RC6_ENCRYPT_MODE, stringToHex(text_i), hexTmp)));
             encrypted[i][j] = xorVectros(encr, encr_j);
         }
     }
     return encrypted;
 }
 
-std::string *encryptBlocksForEight(RC6 *rc6, std::string *vectors, long N, std::string key) {
-	
-	std::string hexKey = stringToHex(key);
-    std::string *encrypted = new std::string[N];
-    for (long i = 0; i < N; i++) {
+int **encryptBlocksForEight(RC6 *rc6, int **vectors, long M, int *key) {
+    std::string hexKey = stringToHex(key);
+    int **encrypted = new int *[M];
+    for (long i = 0; i < M; i++) {
         std::string str = stringToHex(vectors[i]);
-		
         std::string encrypted_line = rc6->run(RC6_ENCRYPT_MODE, str, hexKey);
         encrypted[i] = hexToString(remove_whitespace(encrypted_line));
         encrypted[i] = xorVectros(encrypted[i], vectors[i]);
-		
     }
     return encrypted;
 }
 
-unsigned int *bitStringToIntArray(std::string str) {
-    int n = str.length() / bitsInInt;
-    unsigned int *numbers = new unsigned int[n];
-    for (unsigned long i = 0; i < n; i++) {
-        std::string number = str.substr(i * bitsInInt, bitsInInt);
-        numbers[i] = std::strtol(number.c_str(), NULL, 2);
-    }
-    return numbers;
-}
-
-void writeInFile(std::string filename, std::string *vectors, long N) {
+void writeInFile(std::string filename, int **vectors, long M) {
     std::ofstream output;
     output.open(filename, std::ios::binary | std::ios::out);
-    for (long i = 0; i < N; ++i) {
-        int n = (vectors[i].length() / bitsInInt);
-        unsigned int *toFile = bitStringToIntArray(vectors[i]);
-        for (int j = 0; j < n; ++j) {
-            unsigned int a = toFile[j];
+    for (long i = 0; i < M; ++i) {
+        for (int j = 0; j < N; ++j) {
+            int a = vectors[i][j];
             std::stringstream stream;
             stream << std::setfill('0') << std::setw(2) << std::hex << a;
             std::cout << stream.str() << " ";
@@ -213,120 +190,158 @@ void writeInFile(std::string filename, std::string *vectors, long N) {
 int main() {
     srand(time(NULL));
     int keyLength = 16;
-	int m = keyLength * bitsInByte;
+    int m = keyLength * bitsInByte;
     RC6 *rc6 = new RC6(RC6_W, RC6_R, keyLength);
-	long N = 625000;
+    long M = 312500;
     int n = 128;
     std::ofstream output;
     output.open("keys.txt", std::ios::out);
-	
-    std::string *vectors = getNVectors(N, n, false, "0", false);
 
-    std::string key = getVector(keyLength * bitsInByte, false, "0", false);
+    int **vectors = getNVectors(M, n, false, 0, false);
+
+    int * key = getVector(keyLength * bitsInByte, false, 0, false);
     std::string hexKey = stringToHex(key);
     std::cout << "key 1 = " << hexKey << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
 
-    std::string *encryptResult = encryptBlocks(rc6, vectors, N, key);
+    int **encryptResult = encryptBlocks(rc6, vectors, M, key);
 
-    writeInFile("result1.bin", encryptResult, N);
+    writeInFile("result1.bin", encryptResult, M);
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
     delete[] vectors;
     delete[] encryptResult;
 
-    vectors = getNVectors(N, n, false, "0", true);
-    key = getVector(keyLength * bitsInByte, false, "0", false);
+    std::cout << "second ______________________________________________" << std::endl;
+    vectors = getNVectors(M, n, false, 0, true);
+    std::cout << "second ______________________________________________" << std::endl;
+    key = getVector(keyLength * bitsInByte, false, 0, false);
+    std::cout << "second ______________________________________________" << std::endl;
     hexKey = stringToHex(key);
-    std::cout << "key 2 = " << stringToHex(key) << std::endl;
+    std::cout << "key 2 = " << hexKey << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
-    encryptResult = encryptBlocks(rc6, vectors, N, key);
-    writeInFile("result2.bin", encryptResult, N);
+    encryptResult = encryptBlocks(rc6, vectors, M, key);
+    writeInFile("result2.bin", encryptResult, M);
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
     delete[] vectors;
     delete[] encryptResult;
 
-    vectors = getNVectors(N, n, false, "1", true);
-    key = getVector(keyLength * bitsInByte, false, "0", false);
+    vectors = getNVectors(M, n, false, 1, true);
+    key = getVector(keyLength * bitsInByte, false, 0, false);
     hexKey = stringToHex(key);
     std::cout << "key 3 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
-    encryptResult = encryptBlocks(rc6, vectors, N, key);
-    writeInFile("result3.bin", encryptResult, N);
+    encryptResult = encryptBlocks(rc6, vectors, M, key);
+    writeInFile("result3.bin", encryptResult, M);
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
     delete[] vectors;
     delete[] encryptResult;
 
-    vectors = getNVectors(N, n, false, "1", false);
-    key = getVector(keyLength * bitsInByte, false, "0", true);
+    vectors = getNVectors(M, n, false, 1, false);
+    key = getVector(keyLength * bitsInByte, false, 0, true);
     hexKey = stringToHex(key);
     std::cout << "key 4 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
-    encryptResult = encryptBlocks(rc6, vectors, N, key);
-    writeInFile("result4.bin", encryptResult, N);
+    encryptResult = encryptBlocks(rc6, vectors, M, key);
+    writeInFile("result4.bin", encryptResult, M);
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
     delete[] vectors;
     delete[] encryptResult;
 
-    vectors = getNVectors(N, n, false, "1", false);
-    key = getVector(keyLength * bitsInByte, false, "1", true);
+    vectors = getNVectors(M, n, false, 1, false);
+    key = getVector(keyLength * bitsInByte, false, 1, true);
     hexKey = stringToHex(key);
     std::cout << "key 5 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
-    encryptResult = encryptBlocks(rc6, vectors, N, key);
-    writeInFile("result5.bin", encryptResult, N);
+    encryptResult = encryptBlocks(rc6, vectors, M, key);
+    writeInFile("result5.bin", encryptResult, M);
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
     delete[] vectors;
     delete[] encryptResult;
-	
-
-	N = 4882;//?
-	
-	std::string *keys = getNVectors(N, m, false, "1", false);
-	std::string **encryptResults = encryptBlocksForSix(rc6, N, n, m, keys);
-	
-	for (int i = 0; i < N; i++) {
-		writeInFile("result6.bin", encryptResults[i], m);
-	}
-	
-	delete[] keys;
-	//for reason unknown, it doesn't work with the commented part, though it should
-//	for (int j = 0; j < n; j++) {
-//		delete[] encryptResults[j];
-//	}
-	delete[] encryptResults; //but do we need this then?
-
-	vectors = getNVectors(N, n, false, "1", false);
-	encryptResults = encryptBlocksForSeven(rc6, N, n, m, vectors);
-	for (int i = 0; i < N; i++) {
-		writeInFile("result7.bin", encryptResults[i], m);
-	}
-
-	delete[] vectors;
-//	for (int j = 0; j < n; j++) {
-//		delete[] encryptResults[j];
-//	}
-	delete[] encryptResults;//same questions
-	
-
-	vectors = getNVectors(N, n, false, "1", false);
-	key = getVector(m, false, "1", false);
-	hexKey = stringToHex(key);
-	std::cout << "key 8 = " << stringToHex(key) << std::endl;
-	output.write(hexKey.c_str(), hexKey.length());
-
-	encryptResult = encryptBlocksForEight(rc6, vectors, N, key);
-	writeInFile("result8.bin", encryptResult, N);
-
-	delete[] vectors;
-	delete[] encryptResult;
 
 
-	key = getVector(m, false, "1", false);
-	hexKey = stringToHex(key);
-	std::cout << "key 9 = " << stringToHex(key) << std::endl;
-	output.write(hexKey.c_str(), hexKey.length());
+    M = 2441;//?
 
-	encryptResult = encryptBlocksForNine(rc6, N, n, key);
-	writeInFile("result9.bin", encryptResult, N);
+    std::cout << "6" << std::endl;
+    int **keys = getNVectors(M, m, false, 1, false);
+    int ***encryptResults = encryptBlocksForSix(rc6, M, n, m, keys);
 
-	delete[] encryptResult;
+    for (int i = 0; i < M; i++) {
+        writeInFile("result6.bin", encryptResults[i], m);
+    }
+    for (int i = 0; i < M; i++) {
+        delete[] keys[i];
+        delete[] encryptResults[i];
+    }
+    delete[] keys;
+    delete[] encryptResults;
+
+    std::cout << "7" << std::endl;
+    vectors = getNVectors(M, n, false, 1, false);
+    std::cout << "7a" << std::endl;
+    encryptResults = encryptBlocksForSeven(rc6, M, n, m, vectors);
+    std::cout << "7b" << std::endl;
+    for (int i = 0; i < M; i++) {
+        writeInFile("result7.bin", encryptResults[i], n);
+    }
+    std::cout << "7c" << std::endl;
+    for (int i = 0; i < M; i++) {
+        delete[] vectors[i];
+        delete[] encryptResults[i];
+    }
+    delete[] vectors;
+    delete[] encryptResults;
+
+    M = 312500;
+
+    std::cout << "8" << std::endl;
+    vectors = getNVectors(M, n, false, 1, false);
+    key = getVector(m, false, 1, false);
+    hexKey = stringToHex(key);
+    std::cout << "key 8 = " << stringToHex(key) << std::endl;
+    output.write(hexKey.c_str(), hexKey.length());
+
+    encryptResult = encryptBlocksForEight(rc6, vectors, M, key);
+    writeInFile("result8.bin", encryptResult, M);
+
+    for (int j = 0; j < M; ++j) {
+        delete[] vectors[j];
+        delete[] encryptResult[j];
+    }
+    delete[] vectors;
+    delete[] encryptResult;
+
+    std::cout << "9" << std::endl;
+    key = getVector(m, false, 1, false);
+    hexKey = stringToHex(key);
+    std::cout << "key 9 = " << stringToHex(key) << std::endl;
+    output.write(hexKey.c_str(), hexKey.length());
+    std::cout << "9b" << std::endl;
+    encryptResult = encryptBlocksForNine(rc6, M, n, key);
+    std::cout << "9c" << std::endl;
+    writeInFile("result9.bin", encryptResult, M);
+
+    for (int j = 0; j < M; ++j) {
+        delete[] encryptResult[j];
+    }
+    delete[] encryptResult;
 
 
     output.close();
-	return 0;
+    std::cout << "The End" << std::endl;
+    return 0;
 }
