@@ -16,6 +16,8 @@
 
 int N;
 
+void writeMatrixInFile(int *const *vectors, long M, std::ofstream &output);
+
 std::string remove_whitespace(std::string str) {
     std::string tmp = str.substr(0, str.length());
     tmp.erase(std::remove_if(tmp.begin(), tmp.end(), isspace), tmp.end());
@@ -171,9 +173,23 @@ int **encryptBlocksForEight(RC6 *rc6, int **vectors, long M, int *key) {
     return encrypted;
 }
 
-void writeInFile(std::string filename, int **vectors, long M) {
+void writeInFileMatrix(std::string filename, int **vectors, long M) {
     std::ofstream output;
     output.open(filename, std::ios::binary | std::ios::out);
+    writeMatrixInFile(vectors, M, output);
+    output.close();
+}
+
+void writeInFileCube(std::string filename, int ***vectors, long M, long Z) {
+    std::ofstream output;
+    output.open(filename, std::ios::binary | std::ios::out);
+    for (int i = 0; i < Z; ++i) {
+        writeMatrixInFile(vectors[i], M, output);
+    }
+    output.close();
+}
+
+void writeMatrixInFile(int *const *vectors, long M, std::ofstream &output) {
     for (long i = 0; i < M; ++i) {
         for (int j = 0; j < N; ++j) {
             int a = vectors[i][j];
@@ -184,7 +200,6 @@ void writeInFile(std::string filename, int **vectors, long M) {
         }
         std::cout << std::endl;
     }
-    output.close();
 }
 
 int main() {
@@ -206,7 +221,7 @@ int main() {
 
     int **encryptResult = encryptBlocks(rc6, vectors, M, key);
 
-    writeInFile("result1.bin", encryptResult, M);
+    writeInFileMatrix("result1.bin", encryptResult, M);
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
         delete[] encryptResult[j];
@@ -223,7 +238,7 @@ int main() {
     std::cout << "key 2 = " << hexKey << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
     encryptResult = encryptBlocks(rc6, vectors, M, key);
-    writeInFile("result2.bin", encryptResult, M);
+    writeInFileMatrix("result2.bin", encryptResult, M);
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
         delete[] encryptResult[j];
@@ -237,7 +252,7 @@ int main() {
     std::cout << "key 3 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
     encryptResult = encryptBlocks(rc6, vectors, M, key);
-    writeInFile("result3.bin", encryptResult, M);
+    writeInFileMatrix("result3.bin", encryptResult, M);
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
         delete[] encryptResult[j];
@@ -251,7 +266,7 @@ int main() {
     std::cout << "key 4 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
     encryptResult = encryptBlocks(rc6, vectors, M, key);
-    writeInFile("result4.bin", encryptResult, M);
+    writeInFileMatrix("result4.bin", encryptResult, M);
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
         delete[] encryptResult[j];
@@ -265,7 +280,7 @@ int main() {
     std::cout << "key 5 = " << stringToHex(key) << std::endl;
     output.write(hexKey.c_str(), hexKey.length());
     encryptResult = encryptBlocks(rc6, vectors, M, key);
-    writeInFile("result5.bin", encryptResult, M);
+    writeInFileMatrix("result5.bin", encryptResult, M);
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
         delete[] encryptResult[j];
@@ -280,9 +295,7 @@ int main() {
     int **keys = getNVectors(M, m, false, 1, false);
     int ***encryptResults = encryptBlocksForSix(rc6, M, n, m, keys);
 
-    for (int i = 0; i < M; i++) {
-        writeInFile("result6.bin", encryptResults[i], m);
-    }
+    writeInFileCube("result6.bin", encryptResults, m, M);
     for (int i = 0; i < M; i++) {
         delete[] keys[i];
         delete[] encryptResults[i];
@@ -295,9 +308,7 @@ int main() {
     std::cout << "7a" << std::endl;
     encryptResults = encryptBlocksForSeven(rc6, M, n, m, vectors);
     std::cout << "7b" << std::endl;
-    for (int i = 0; i < M; i++) {
-        writeInFile("result7.bin", encryptResults[i], n);
-    }
+    writeInFileCube("result7.bin", encryptResults, n, M);
     std::cout << "7c" << std::endl;
     for (int i = 0; i < M; i++) {
         delete[] vectors[i];
@@ -316,7 +327,7 @@ int main() {
     output.write(hexKey.c_str(), hexKey.length());
 
     encryptResult = encryptBlocksForEight(rc6, vectors, M, key);
-    writeInFile("result8.bin", encryptResult, M);
+    writeInFileMatrix("result8.bin", encryptResult, M);
 
     for (int j = 0; j < M; ++j) {
         delete[] vectors[j];
@@ -333,7 +344,7 @@ int main() {
     std::cout << "9b" << std::endl;
     encryptResult = encryptBlocksForNine(rc6, M, n, key);
     std::cout << "9c" << std::endl;
-    writeInFile("result9.bin", encryptResult, M);
+    writeInFileMatrix("result9.bin", encryptResult, M);
 
     for (int j = 0; j < M; ++j) {
         delete[] encryptResult[j];
