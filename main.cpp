@@ -215,11 +215,11 @@ int main() {
     int keyLength = 16;
 	int m = keyLength * bitsInByte;
     RC6 *rc6 = new RC6(RC6_W, RC6_R, keyLength);
-    long N = 2;//78125
+	long N = 625000;
     int n = 128;
     std::ofstream output;
-    output.open("keys8-9.txt", std::ios::out);
-	/*
+    output.open("keys.txt", std::ios::out);
+	
     std::string *vectors = getNVectors(N, n, false, "0", false);
 
     std::string key = getVector(keyLength * bitsInByte, false, "0", false);
@@ -272,8 +272,9 @@ int main() {
     writeInFile("result5.bin", encryptResult, N);
     delete[] vectors;
     delete[] encryptResult;
-	*/
+	
 
+	N = 4882;//?
 	
 	std::string *keys = getNVectors(N, m, false, "1", false);
 	std::string **encryptResults = encryptBlocksForSix(rc6, N, n, m, keys);
@@ -289,7 +290,7 @@ int main() {
 //	}
 	delete[] encryptResults; //but do we need this then?
 
-	std::string *vectors = getNVectors(N, n, false, "1", false);
+	vectors = getNVectors(N, n, false, "1", false);
 	encryptResults = encryptBlocksForSeven(rc6, N, n, m, vectors);
 	for (int i = 0; i < N; i++) {
 		writeInFile("result7.bin", encryptResults[i], m);
@@ -303,12 +304,12 @@ int main() {
 	
 
 	vectors = getNVectors(N, n, false, "1", false);
-	std::string key = getVector(m, false, "1", false);
-	std::string hexKey = stringToHex(key);
+	key = getVector(m, false, "1", false);
+	hexKey = stringToHex(key);
 	std::cout << "key 8 = " << stringToHex(key) << std::endl;
 	output.write(hexKey.c_str(), hexKey.length());
 
-	std::string *encryptResult = encryptBlocksForEight(rc6, vectors, N, key);
+	encryptResult = encryptBlocksForEight(rc6, vectors, N, key);
 	writeInFile("result8.bin", encryptResult, N);
 
 	delete[] vectors;
